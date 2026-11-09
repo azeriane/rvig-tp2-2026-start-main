@@ -40,74 +40,48 @@ public class ShootManager : MonoBehaviour
         if (!rightController.isValid)
         {
             rightController = InputDevices.GetDeviceAtXRNode(XRNode.RightHand);
-            if (!rightController.isValid)
-            {
-                return;
-            }
         }
 
-        if (!rightController.TryGetFeatureValue(
+        if (rightController.TryGetFeatureValue(
                 CommonUsages.trigger, out float triggerValue))
         {
-            return;
+            bool triggerPressed = triggerValue > 0.1f;
+            if (triggerPressed && !previousTriggerPressed)
+            {
+                Shoot();
+            }
+            previousTriggerPressed = triggerPressed;
         }
-
-        bool triggerPressed = triggerValue > 0.1f;
-
-        if (triggerPressed && !previousTriggerPressed)
-        {
-            Shoot();
-        }
-
-        previousTriggerPressed = triggerPressed;
     }
 
     private void Shoot()
     {
-        for (int i = 0; i < targets.Length; i++)
+        foreach (GameObject target in targets)
         {
-            GameObject target = targets[i];
-            if (target == null)
-            {
-                continue;
-            }
-
-            Vector3 directionToTarget = target.transform.position - controller.position;
-            float angle = Vector3.Angle(controller.forward, directionToTarget);
-
-            if (angle > angleThreshold)
+            if (Vector3.Angle(
+                    controller.forward,
+                    target.transform.position - controller.position) > angleThreshold)
             {
                 continue;
             }
 
             if (hitParticlesPrefab != null)
             {
-                GameObject particles = Instantiate(
-                    hitParticlesPrefab,
-                    target.transform.position,
+                GameObject particles = Instantiate(hitParticlesPrefab, target.transform.position,
                     Quaternion.identity);
                 ParticleSystem particleSystem = particles.GetComponent<ParticleSystem>();
                 if (particleSystem != null)
                 {
                     particleSystem.Play();
-                    float particleDuration =
-                        particleSystem.main.duration +
-                        particleSystem.main.startLifetime.constantMax;
-                    Destroy(particles, particleDuration);
+                    Destroy(particles, particleSystem.main.duration +
+                        particleSystem.main.startLifetime.constantMax);
                 }
             }
 
             AudioSource audioSource = target.GetComponent<AudioSource>();
             if (audioSource != null)
             {
-                if (hitSound != null)
-                {
-                    audioSource.PlayOneShot(hitSound);
-                }
-                else
-                {
-                    audioSource.Play();
-                }
+                audioSource.PlayOneShot(hitSound != null ? hitSound : audioSource.clip);
             }
 
             break;
